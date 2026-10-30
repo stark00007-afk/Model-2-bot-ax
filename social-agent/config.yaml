@@ -1,0 +1,38 @@
+# Safe default: drafts and previews run, but nothing is actually posted.
+# Set to false only after you have checked a few previews in Discord.
+dry_run: true
+
+# What the agent searches for each run (Google News, last 24h).
+niche_keywords:
+  - "new AI tools"
+  - "AI news"
+
+# Drafts created per run (the workflow runs twice a day).
+posts_per_run: 1
+
+# Minutes a draft must have been visible in Discord before it can be published.
+min_preview_minutes: 20
+
+model: claude-sonnet-5-5
+
+platforms:
+  x:
+    enabled: false   # paused for now; set true once X keys are ready
+    max_chars: 280
+    format: "One punchy post, max 2 hashtags, no emojis spam."
+  linkedin:
+    enabled: true
+    max_chars: 1300
+    format: "Short professional post with a hook line, 2-3 short paragraphs, 3 hashtags at the end."
+  instagram:
+    enabled: false   # publisher not built yet
+    max_chars: 2200
+    format: "Caption with a hook, line breaks, and up to 8 hashtags at the end."
+  facebook:
+    enabled: true    # posts to a Facebook Page, not a personal profile
+    max_chars: 1000
+    format: "Friendly short post, 1-2 paragraphs, ends with a question, max 3 hashtags."
+  snapchat:
+    enabled: false   # Snapchat has no public posting API; preview only, you post by hand
+    max_chars: 250
+    format: "Very short caption for a story, one line, casual."

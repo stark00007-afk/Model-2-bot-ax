@@ -1,0 +1,74 @@
+name: Agent
+
+on:
+  schedule:
+    # Times are UTC. IST = UTC+5:30. GitHub may delay scheduled runs by several minutes.
+    - cron: "0 2 * * *"    # 07:30 IST draft
+    - cron: "0 3 * * *"    # 08:30 IST preview
+    - cron: "30 3 * * *"   # 09:00 IST publish
+    - cron: "0 12 * * *"   # 17:30 IST draft
+    - cron: "0 13 * * *"   # 18:30 IST preview
+    - cron: "30 13 * * *"  # 19:00 IST publish
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "Step to run"
+        type: choice
+        options: [draft, preview, publish]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent-queue
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Pick step
+        id: pick
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT: ${{ inputs.command }}
+        run: |
+          case "$SCHEDULE" in
+            "0 2 * * *"|"0 12 * * *") CMD=draft ;;
+            "0 3 * * *"|"0 13 * * *") CMD=preview ;;
+            "30 3 * * *"|"30 13 * * *") CMD=publish ;;
+            *) CMD="$INPUT" ;;
+          esac
+          echo "cmd=$CMD" >> "$GITHUB_OUTPUT"
+
+      - name: Run
+        env:
+          CMD: ${{ steps.pick.outputs.cmd }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_PERSON_URN: ${{ secrets.LINKEDIN_PERSON_URN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_TOKEN: ${{ secrets.FACEBOOK_PAGE_TOKEN }}
+        run: python -m agent.main "$CMD"
+
+      - name: Save queue changes
+        run: |
+          git config user.name "social-agent"
+          git config user.email "social-agent@users.noreply.github.com"
+          git add queue
+          git diff --cached --quiet || (git commit -m "queue update" && git pull --rebase && git push)
